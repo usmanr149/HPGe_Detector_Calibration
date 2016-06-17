@@ -45,7 +45,6 @@ def createMatrixX(dataX, dataeY, dataY, data, rel_data_sets, x0):
 	matrix_X = [ [0 for x in range(4+rel_data_sets)] for y in range(len(dataX)) ]
 	#This is format for matrix_X
 	#(x-x0)^2	1	x 	x0(2x-x0), x^2	rel_1	rel_2	rel_3 ...
-	#See the paper for more details
 
 	for i in range(len(dataX)):
 		if (dataX[i] < x0):
@@ -88,7 +87,7 @@ def derChiSquaredWRTx0(dataX, dataY, dataeY, x0, theta, data, rel_data_sets):
 					scaling_factor = theta.item(4+rel, 0)
 					break
 			x_l = np.matrix([(log(dataX[i]) - log(x0))**2, 1, log(dataX[i]), log(x0)*(2*log(dataX[i]) - log(x0))])
-			der_theta += -2*( log(dataY[i]) - x_l*theta[0:4,:] - scaling_factor )*2*((log(dataX[i]) - log(x0)))*( theta.item(0,0) - theta.item(3,0) )
+			der_theta += -4*((dataY[i]/dataeY[i])**2)*( log(dataY[i]) - x_l*theta[0:4,:] - scaling_factor )*(log(dataX[i]) - log(x0))*( theta.item(3,0) - theta.item(0,0) )
 	return der_theta	
 
 def evaluateTheta(X, Y):
@@ -97,7 +96,7 @@ def evaluateTheta(X, Y):
 	return theta
 
 def ChivsE0(dataX, dataY, dataeY, data, rel_data_sets):
-	#this function creates a file containg value of E0 and chisquares. E0 starts at 80 keV.	
+	#this function creates a file containg value of E0 and chisquares
 	target = open('ChivsE0.dat', 'w')
 	target.truncate()
 	for x0 in range(80, 1000):
@@ -114,7 +113,7 @@ def ChivsE0(dataX, dataY, dataeY, data, rel_data_sets):
 
 
 def plot(theta, x0, mergedDataX, mergedDataY, data, rel_data_sets, covMat, t):
-	#A plot function to help visualize how good the fit is and what the confidence interval looks like
+	#A plot function
 	x = np.linspace(50,3600,10000) #this creates 10000 points between 50 and 3600
 	y = []
 	dataX = []
@@ -168,8 +167,8 @@ def plot(theta, x0, mergedDataX, mergedDataY, data, rel_data_sets, covMat, t):
 
 
 def GradientDescent(dataX, dataY, dataeY, init_x0, data, rel_data_sets):
-	precision = 0.00005
-	gamma = 0.1
+	precision = 0.00000005
+	gamma = 0.01
 	x_new = init_x0 + 3*precision
 	x_old = init_x0
 	while abs(x_new - x_old) > precision:
@@ -209,32 +208,33 @@ def main():
 	###Read the absolute and relative efficiency data sets
 	data = {}
 
-	abs_data_sets = int(input('How many absolute efficiency data sets: '))
+	abs_data_sets = int(input('How many absolute efficiency data sets: \n'))
 
 	for i in range(abs_data_sets):
-		filename = input('Input the name of the absolute efficiency file: ')
+		filename = input('Input the name of the absolute efficiency file: \n')
 		dataX, dataY, errorY = ReadData(filename)
 		#print(dataX)
 		data['absX{0}'.format(i)] = dataX
 		data['absy{0}'.format(i)] = dataY
 		data['absey{0}'.format(i)] = errorY
 
-	rel_data_sets = int(input('How many relative efficiency data sets: '))
+	rel_data_sets = int(input('How many relative efficiency data sets: \n'))
 
 	for i in range(rel_data_sets):
-		filename = input('Input the name of the relative efficiency file: ')
+		filename = input('Input the name of the relative efficiency file: \n')
 		dataX, dataY, errorY = ReadData(filename)
 		#print(dataX)
 		data['relX{0}'.format(i)] = dataX
 		data['rely{0}'.format(i)] = dataY
 		data['reley{0}'.format(i)] = errorY
 
-	x0 = float(input('Enter an estimate for the intersection point in keV: '))
+	x0 = float(input('Enter an estimate for the intersection point in keV: \n'))
 	mergedDataX, mergedDataY, mergedDataeY = combineDataSets(data, abs_data_sets, rel_data_sets)
 	
 	ChivsE0(mergedDataX, mergedDataY, mergedDataeY, data, rel_data_sets)
 
 	x0 = GradientDescent(mergedDataX, mergedDataY, mergedDataeY, x0, data, rel_data_sets)
+	print('E_0 = ', x0.item(0,0))
 	getX = createMatrixX(mergedDataX, mergedDataeY, mergedDataY, data, rel_data_sets, x0)
 	getY = createMatrixY(mergedDataY, mergedDataeY)
 	X = np.matrix(getX)
@@ -243,7 +243,7 @@ def main():
 	chisquare = ChiSquared(X,Y,theta)
 
 	print('\n')
-	print('E_0 = ', x0.item(0,0))
+	#print('E_0 = ', x0.item(0,0))
 	#Outputs the covariance matrix
 	for i in range(len(theta)):
 		if i < 4:
